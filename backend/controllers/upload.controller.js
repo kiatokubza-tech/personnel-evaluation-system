@@ -3,7 +3,7 @@ const fs = require('fs');
 const attRepo = require('../repositories/attachments');
 const asgRepo = require('../repositories/assignments');
 const mapRepo = require('../repositories/indicatorEvidence');
-const db = require('../db/knex');
+function getDb() { return require('../db/knex') }
 
 // ---------- helpers ----------
 function safeUnlink(abs) {
@@ -16,6 +16,7 @@ function relFromUploads(absPath) {
     .replace(/\\/g, '/');
 }
 async function isPeriodActive(period_id) {
+  const db = getDb()
   const row = await db('evaluation_periods').where({ id: period_id, is_active: 1 }).first(); 
   // return row or undefined หมายความว่า period_id ที่ส่งมา ต้องเป็นเลข และต้องมีในตาราง evaluation_periods และ is_active=1  เพื่อให้ period นั้นเปิดอยู่
   return !!row;
@@ -65,6 +66,7 @@ exports.uploadEvidence = async (req, res, next) => {
     // console.log('req.file.path=', req.file.path);
     const storage_path = relFromUploads(req.file.path);
     console.log('storage_path=', storage_path);
+    const db = getDb()
     const [id] = await db('attachments').insert({
       period_id: Number(period_id),
       evaluatee_id,
@@ -95,6 +97,7 @@ exports.listMine = async (req, res, next) => {
     if (indicator_id) q = q.andWhere({ indicator_id: Number(indicator_id) });
     if (evidence_type_id) q = q.andWhere({ evidence_type_id: Number(evidence_type_id) });
 
+    const db = getDb()
     const rows = await q;
     const data = rows.map(r => ({ ...r, url:`/uploads/${r.storage_path}` }));
     res.json({ success:true, data });
@@ -118,6 +121,7 @@ exports.deleteMine = async (req, res, next) => {
     }
 
     const abs = path.join(__dirname, '..', 'uploads', row.storage_path);
+    const db = getDb()
     await db('attachments').where({ id }).del();
     safeUnlink(abs);
 
@@ -144,6 +148,7 @@ exports.updateFileMine = async (req, res, next) => {
     const oldAbs = path.join(__dirname, '..', 'uploads', row.storage_path);
     const newRel = relFromUploads(req.file.path);
 
+    const db = getDb()
     await db('attachments').where({ id }).update({
       file_name: req.file.originalname,
       mime_type: req.file.mimetype,
@@ -198,6 +203,7 @@ exports.listForEvaluator = async (req, res, next) => {
     const evaluateeId = Number(req.params.evaluateeId);
     const { period_id } = req.query || {};
 
+    const db = getDb()
     let q = db('attachments').where({ evaluatee_id: evaluateeId }).orderBy('id', 'desc');
     if (period_id) q = q.andWhere({ period_id: Number(period_id) });
 

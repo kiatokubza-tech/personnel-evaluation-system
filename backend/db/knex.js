@@ -1,6 +1,6 @@
 // backend/db/knex.js
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') }); // << เพิ่มบรรทัดนี้
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') }); // load repo root .env
 
 const knex = require('knex');
 
@@ -9,8 +9,8 @@ const db = knex({
   connection: {
     host: process.env.DB_HOST || '127.0.0.1',
     user: process.env.DB_USER || 'root',
-    // password: process.env.DB_PASS || 'rootpassword',
-    password: process.env.DB_PASS || '', // สำหรับ XAMPP
+    // support DB_PASSWORD from repo .env
+    password: process.env.DB_PASSWORD || process.env.DB_PASS || '', // สำหรับ XAMPP
     database: process.env.DB_NAME || 'skills_db',
     port: Number(process.env.DB_PORT) || 3306,
     connectTimeout: 15000,

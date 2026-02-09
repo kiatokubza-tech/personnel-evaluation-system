@@ -13,26 +13,31 @@
           <v-list-subheader class="text-uppercase text-caption">{{ sec.label }}</v-list-subheader>
 
           <template v-for="it in sec.items" :key="it.to || it.href">
-            <NuxtLink
+            <!-- Internal link -->
+            <v-list-item
               v-if="it.to"
-              :to="it.to"
-              class="no-underline"
-              exact-active-class="bg-primary text-white rounded-lg"
+              :title="it.label"
+              :active="route.path === it.to || (it.to !== '/' && route.path.startsWith(it.to))"
+              active-class="bg-primary text-white"
+              rounded="lg"
+              @click="goTo(it.to)"
             >
-              <v-list-item :title="it.label" :active="route.path.startsWith(it.to)">
-                <template #prepend>
-                  <v-icon :icon="it.icon || 'mdi-circle-small'" />
-                </template>
-              </v-list-item>
-            </NuxtLink>
+              <template #prepend>
+                <v-icon :icon="it.icon || 'mdi-circle-small'" />
+              </template>
+            </v-list-item>
 
-            <a v-else :href="it.href" :target="it.target || '_blank'" class="no-underline">
-              <v-list-item :title="it.label">
-                <template #prepend>
-                  <v-icon :icon="it.icon || 'mdi-circle-small'" />
-                </template>
-              </v-list-item>
-            </a>
+            <!-- External link -->
+            <v-list-item
+              v-else
+              :href="it.href"
+              :target="it.target || '_blank'"
+              :title="it.label"
+            >
+              <template #prepend>
+                <v-icon :icon="it.icon || 'mdi-circle-small'" />
+              </template>
+            </v-list-item>
           </template>
 
           <v-divider class="my-2" />
@@ -156,6 +161,11 @@ function toggleTheme () {
 
 // Footer year
 const year = new Date().getFullYear()
+
+// Navigate function for menu items
+function goTo(path) {
+  navigateTo(path)
+}
 
 // Logout
 function logout () {

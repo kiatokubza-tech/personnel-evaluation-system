@@ -32,16 +32,22 @@ export default defineNuxtPlugin((nuxtApp) => {
     return req
   })
 
-  // ✅ เพิ่ม debug ถ้า server บอก Missing token
+  // ✅ เพิ่ม debug ถ้า server บอก Missing token หรือ token หมดอายุ
   api.interceptors.response.use(
     (res) => res,
     (err) => {
       if (err?.response?.status === 401) {
         console.warn('[Axios] 401 Unauthorized:', err?.response?.data)
+        // Token หมดอายุหรือไม่ถูกต้อง - ล้าง token และ redirect ไป login
+        auth.logout()
+        if (process.client && window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
       }
       return Promise.reject(err)
     }
   )
 
   nuxtApp.provide('api', api)
+  nuxtApp.provide('axios', api)  // รองรับทั้ง $api และ $axios
 })

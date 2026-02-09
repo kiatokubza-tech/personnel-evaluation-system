@@ -1,10 +1,67 @@
 // routes/attachments.js
 const express = require("express");
 const router = express.Router();
+const path = require("path");
+const fs = require("fs");
 const db = require("../db/knex");
 const asgRepo = require("../repositories/assignments");
 const authz = require("../middlewares/auth"); // ถูกแก้จาก authz เป็น auth เพราะไฟล์นี้ใช้ authz ไม่ได้
 const upload = require("../middlewares/upload");
+
+// GET /api/evidence-types - List all evidence types
+router.get("/evidence-types", authz("evaluatee", "evaluator", "admin"), async (req, res) => {
+  try {
+    const types = await db("evidence_types").select("*");
+    res.json({ data: types });
+  } catch (err) {
+    console.error('[ERROR]', err);
+    res.status(500).json({ error: 'Failed to fetch evidence types' });
+  }
+});
+
+// GET /api/attachments - Get attachments for current user
+router.get("/attachments", authz("evaluatee", "evaluator", "admin"), async (req, res) => {
+  try {
+    const { period_id, indicator_id } = req.query;
+    const userId = req.user.id;
+    const role = req.user.role;
+
+    let query = db("attachments as a")
+      .leftJoin("indicators as i", "a.indicator_id", "i.id")
+      .leftJoin("evidence_types as et", "a.evidence_type_id", "et.id")
+      .leftJoin("evaluation_periods as p", "a.period_id", "p.id")
+      .select(
+        "a.*",
+        "i.name_th as indicator_name",
+        "i.code as indicator_code",
+        "et.name_th as evidence_type_name",
+        "p.name_th as period_name"
+      )
+      .orderBy("a.created_at", "desc");
+
+    // Filter by role
+    if (role === "evaluatee") {
+      query = query.where("a.evaluatee_id", userId);
+    } else if (role === "evaluator") {
+      // Evaluator can see their evaluatees' files
+      query = query.whereIn("a.evaluatee_id", function() {
+        this.select("evaluatee_id")
+          .from("assignments")
+          .where("evaluator_id", userId);
+      });
+    }
+    // admin can see all
+
+    if (period_id) query = query.where("a.period_id", period_id);
+    if (indicator_id) query = query.where("a.indicator_id", indicator_id);
+
+    const attachments = await query;
+    res.json({ data: attachments });
+  } catch (err) {
+    console.error('[ERROR]', err);
+    res.status(500).json({ error: 'Failed to fetch attachments' });
+  }
+});
 
 // GET /api/periods/active
 router.get(
@@ -182,5 +239,120 @@ router.post(
     }
   }
 );
+
+// GET /api/attachments/:id - Get single attachment info
+router.get("/attachments/:id", authz("evaluatee", "evaluator", "admin"), async (req, res) => {
+  try {
+    const attachment = await db("attachments as a")
+      .leftJoin("indicators as i", "a.indicator_id", "i.id")
+      .leftJoin("evidence_types as et", "a.evidence_type_id", "et.id")
+      .where("a.id", req.params.id)
+      .select("a.*", "i.name_th as indicator_name", "et.name_th as evidence_type_name")
+      .first();
+
+    if (!attachment) {
+      return res.status(404).json({ error: "Attachment not found" });
+    }
+
+    // Check access rights
+    const { id: userId, role } = req.user;
+    if (role === "evaluatee" && attachment.evaluatee_id !== userId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    if (role === "evaluator") {
+      const hasAccess = await db("assignments")
+        .where({ evaluator_id: userId, evaluatee_id: attachment.evaluatee_id })
+        .first();
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+    }
+
+    res.json(attachment);
+  } catch (err) {
+    console.error("[ERROR]", err);
+    res.status(500).json({ error: "Failed to fetch attachment" });
+  }
+});
+
+// GET /api/attachments/:id/file - Download file
+router.get("/attachments/:id/file", authz("evaluatee", "evaluator", "admin"), async (req, res) => {
+  try {
+    const attachment = await db("attachments").where("id", req.params.id).first();
+
+    if (!attachment) {
+      return res.status(404).json({ error: "Attachment not found" });
+    }
+
+    // Check access rights
+    const { id: userId, role } = req.user;
+    if (role === "evaluatee" && attachment.evaluatee_id !== userId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    if (role === "evaluator") {
+      const hasAccess = await db("assignments")
+        .where({ evaluator_id: userId, evaluatee_id: attachment.evaluatee_id })
+        .first();
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+    }
+
+    // Check if file exists
+    const filePath = attachment.storage_path;
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "File not found on server" });
+    }
+
+    // Set headers for download
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(attachment.file_name)}"`);
+    res.setHeader("Content-Type", attachment.mime_type);
+
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+  } catch (err) {
+    console.error("[ERROR]", err);
+    res.status(500).json({ error: "Failed to download file" });
+  }
+});
+
+// DELETE /api/attachments/:id - Delete attachment
+router.delete("/attachments/:id", authz("evaluatee", "evaluator", "admin"), async (req, res) => {
+  try {
+    const attachment = await db("attachments").where("id", req.params.id).first();
+
+    if (!attachment) {
+      return res.status(404).json({ error: "Attachment not found" });
+    }
+
+    // Check access rights
+    const { id: userId, role } = req.user;
+    if (role === "evaluatee" && attachment.evaluatee_id !== userId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    if (role === "evaluator") {
+      const hasAccess = await db("assignments")
+        .where({ evaluator_id: userId, evaluatee_id: attachment.evaluatee_id })
+        .first();
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+    }
+
+    // Delete file from disk
+    if (attachment.storage_path && fs.existsSync(attachment.storage_path)) {
+      fs.unlinkSync(attachment.storage_path);
+    }
+
+    // Delete from database
+    await db("attachments").where("id", req.params.id).delete();
+
+    res.json({ message: "Attachment deleted successfully" });
+  } catch (err) {
+    console.error("[ERROR]", err);
+    res.status(500).json({ error: "Failed to delete attachment" });
+  }
+});
 
 module.exports = router;

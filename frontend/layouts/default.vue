@@ -13,7 +13,6 @@ const drawer = ref(true)
       <v-app-bar-nav-icon @click="drawer = !drawer" />
       <v-toolbar-title>Personnel evaluation system</v-toolbar-title>
       <v-spacer />
-      <NuxtLink to="/theme" class="mr-4">Theme</NuxtLink>
       <!-- โปรไฟล์ -->
       <v-btn icon="mdi-account-circle" variant="text" />
     </v-app-bar>

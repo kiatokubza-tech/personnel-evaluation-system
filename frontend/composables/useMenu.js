@@ -4,8 +4,8 @@ import { ref, isRef, computed } from 'vue'
 // ถ้า backend ส่ง 'evaluatee' ให้ map มาเป็น 'user'
 function normalizeRole(r) {
   const x = (r || '').toString().toLowerCase()
-  if (x === 'evaluatee') return 'user'
-  return ['admin', 'evaluator', 'user'].includes(x) ? x : 'user'
+  if (x === 'evaluatee') return 'evaluatee'
+  return ['admin', 'evaluator', 'evaluatee'].includes(x) ? x : 'evaluatee'
 }
 
 const MAP = {
@@ -13,20 +13,31 @@ const MAP = {
     {
       label: 'MAIN',
       items: [
-        { label: 'Dashboard', to: '/',              icon: 'mdi-view-dashboard-outline' },
-        { label: 'Upload',    to: '/upload',        icon: 'mdi-tray-arrow-up' },
+        { label: 'Dashboard', to: '/', icon: 'mdi-view-dashboard-outline' },
       ]
     },
     {
       label: 'MANAGEMENT',
       items: [
-        { label: 'Users',         to: '/users',            icon: 'mdi-account-cog-outline' },
-        { label: 'Periods',       to: '/admin/periods',    icon: 'mdi-calendar-range' },
-        { label: 'Topics',        to: '/admin/topics',     icon: 'mdi-format-list-bulleted' },
-        { label: 'Assignments',   to: '/admin/assignments',icon: 'mdi-account-multiple-check' },
-        { label: 'Monitor',       to: '/admin/monitor',    icon: 'mdi-progress-check' },
-        { label: 'Reports',       to: '/reports',          icon: 'mdi-chart-areaspline' },
-        { label: 'Settings',      to: '/settings',         icon: 'mdi-cog-outline' },
+        { label: 'Users', to: '/admin/users', icon: 'mdi-account-cog-outline' },
+        { label: 'Evaluation Topics', to: '/admin/topics', icon: 'mdi-format-list-bulleted' },
+        { label: 'Indicators', to: '/admin/indicators', icon: 'mdi-checkbox-marked-outline' },
+        { label: 'Evaluation Periods', to: '/admin/periods', icon: 'mdi-calendar-range' },
+        { label: 'Assignments', to: '/admin/assignments', icon: 'mdi-account-multiple-check' },
+        { label: 'Evaluation Results', to: '/admin/results', icon: 'mdi-file-chart-outline' },
+      ]
+    },
+    {
+      label: 'REPORTS',
+      items: [
+        { label: 'Normalized /60', to: '/reports/normalized', icon: 'mdi-chart-bar' },
+        { label: 'Progress', to: '/reports/progress', icon: 'mdi-progress-check' },
+      ]
+    },
+    {
+      label: 'SYSTEM',
+      items: [
+        { label: 'System Health', href: 'http://localhost:7000/health', target: '_blank', icon: 'mdi-heart-pulse' },
         { label: 'API Docs', href: 'http://localhost:7000/docs', target: '_blank', icon: 'mdi-book-open-outline' },
       ]
     }
@@ -36,51 +47,48 @@ const MAP = {
     {
       label: 'MAIN',
       items: [
-        { label: 'Dashboard', to: '/',       icon: 'mdi-view-dashboard-outline' },
-        { label: 'Upload',    to: '/upload', icon: 'mdi-tray-arrow-up' },
+        { label: 'Dashboard', to: '/', icon: 'mdi-view-dashboard-outline' },
       ]
     },
     {
       label: 'EVALUATION',
       items: [
-        { label: 'Assigned Tasks',  to: '/eval/tasks',   icon: 'mdi-clipboard-check-outline' },
-        { label: 'Scoring',         to: '/eval/scoring', icon: 'mdi-lead-pencil' },
-        { label: 'Results',         to: '/eval/results', icon: 'mdi-file-check-outline' },
-        { label: 'Users',           to: '/users',        icon: 'mdi-account-multiple-outline' },
-        { label: 'API Docs', href: 'http://localhost:7000/docs', target: '_blank', icon: 'mdi-book-open-outline' },
+        { label: 'My Assignments', to: '/evaluator/assignments', icon: 'mdi-clipboard-check-outline' },
+        { label: 'History', to: '/evaluator/history', icon: 'mdi-history' },
+      ]
+    },
+    {
+      label: 'REPORTS',
+      items: [
+        { label: 'Normalized /60', to: '/reports/normalized', icon: 'mdi-chart-bar' },
       ]
     }
   ],
 
-  user: [
+  evaluatee: [
     {
       label: 'MAIN',
       items: [
-        { label: 'Dashboard', to: '/',           icon: 'mdi-view-dashboard-outline' },
-        { label: 'Upload',    to: '/upload',     icon: 'mdi-tray-arrow-up' }, // ✅ บังคับมีแน่
+        { label: 'Dashboard', to: '/', icon: 'mdi-view-dashboard-outline' },
       ]
     },
     {
       label: 'MY EVALUATION',
       items: [
-        { label: 'Profile',         to: '/me',             icon: 'mdi-account' },
-        { label: 'Indicators',      to: '/me/indicators',  icon: 'mdi-format-list-bulleted-square' },
-        { label: 'Self Assessment', to: '/me/self-score',  icon: 'mdi-star-check-outline' },
-        { label: 'Progress',        to: '/me/progress',    icon: 'mdi-progress-clock' },
-        { label: 'Export',          to: '/me/export',      icon: 'mdi-tray-arrow-down' },
-        { label: 'Feedback',        to: '/me/feedback',    icon: 'mdi-message-draw' },
+        { label: 'My Evaluation', to: '/me/evaluation', icon: 'mdi-clipboard-account-outline' },
+        { label: 'Upload Evidence', to: '/me/evidence', icon: 'mdi-file-upload-outline' },
+        { label: 'Personal Report', to: '/me/report', icon: 'mdi-file-document-outline' },
       ]
     }
   ]
 }
 
-export function useMenu(roleInput = 'user') {
+export function useMenu(roleInput = 'evaluatee') {
   const r = isRef(roleInput) ? roleInput : ref(roleInput)
 
-  // ให้เมนูปลอดภัยแม้ role ยังไม่พร้อม (ตอน hydrate แรก ๆ)
   const menu = computed(() => {
     const key = normalizeRole(r.value)
-    return MAP[key] || MAP.user
+    return MAP[key] || MAP.evaluatee
   })
 
   return { menu }
