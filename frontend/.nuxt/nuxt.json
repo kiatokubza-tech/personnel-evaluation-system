@@ -1,9 +1,9 @@
 {
-  "_hash": "itgYDDLwl36S2AKFs_0phEJPS2K-ekGx0IqR92GbmvY",
+  "_hash": "VfVPOtjxHGAFpLczO3GRK1I_AAJIxtymRPJRJ7pDgIo",
   "project": {
-    "rootDir": "D:/MyDev/xampp/test/competency2568/frontend"
+    "rootDir": "C:/systemdeverlop/personnel-evaluation-system/frontend"
   },
   "versions": {
-    "nuxt": "3.19.2"
+    "nuxt": "3.21.1"
   }
 }
